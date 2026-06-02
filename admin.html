@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Kontrol Admin - SDN Balowerti 2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
+
+    <header class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center shadow-md">
+        <div class="flex items-center space-x-3">
+            <div class="bg-amber-500 text-slate-950 p-2 rounded-xl font-bold"><i class="fa-solid fa-user-shield"></i></div>
+            <div>
+                <h1 class="font-bold text-md leading-tight">Admin Pelayanan Online</h1>
+                <p class="text-xs text-slate-400">SDN Balowerti 2 • Notifikasi Aktif: fabian.putratama36@guru.sd.belajar.id</p>
+            </div>
+        </div>
+        <a href="index.html" onclick="localStorage.removeItem('isAdmin')" class="bg-slate-800 hover:bg-red-700 px-4 py-2 rounded-xl text-xs font-semibold transition-all"><i class="fa-solid fa-power-off mr-1"></i> Log Out</a>
+    </header>
+
+    <main class="max-w-7xl mx-auto w-full p-6 flex-1 grid grid-cols-1 xl:grid-cols-3 gap-6">
+        
+        <div class="xl:col-span-2 space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-base font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-comments text-emerald-600"></i> Monitoring Konseling & Pengaduan</h2>
+                    <button onclick="clearReports()" class="text-xs text-red-500 hover:underline"><i class="fa-solid fa-trash"></i> Bersihkan Log</button>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider">
+                                <th class="p-3">Pengirim</th>
+                                <th class="p-3">Isi Pengaduan</th>
+                                <th class="p-3">Status/Respon</th>
+                                <th class="p-3 text-right">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reportTableBody" class="divide-y divide-slate-100">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="xl:col-span-1 space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
+                <div>
+                    <h2 class="text-base font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-file-excel text-green-600"></i> Rekapitulasi & Ekspor Data</h2>
+                    <p class="text-xs text-slate-500 mb-4">Seluruh data pengaduan masuk dan rekapitulasi hasil survey kepuasan dapat diunduh langsung menjadi file lembar kerja Microsoft Excel secara realtime.</p>
+                </div>
+                <div class="space-y-2">
+                    <button onclick="exportToExcel('surveys')" class="w-full bg-green-700 hover:bg-green-800 text-white font-semibold py-3 px-4 rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-download"></i> Unduh Data Survey (Excel .csv)
+                    </button>
+                    <button onclick="exportToExcel('reports')" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-semibold py-3 px-4 rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-download"></i> Unduh Log Pengaduan (Excel .csv)
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <h2 class="text-base font-bold text-slate-800 mb-3 flex items-center gap-2"><i class="fa-solid fa-star text-amber-500"></i> Hasil Survey Terbaru</h2>
+                <div id="surveyContainer" class="space-y-2.5 max-h-[260px] overflow-y-auto pr-1">
+                    </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // Proteksi Halaman Admin
+        if(localStorage.getItem('isAdmin') !== 'true') {
+            alert('Akses ditolak! Anda harus login sebagai admin.');
+            window.location.href = 'index.html';
+        }
+
+        function loadDashboardData() {
+            // 1. Load Tabel Pengaduan
+            const reports = JSON.parse(localStorage.getItem('reports') || '[]');
+            const tbody = document.getElementById('reportTableBody');
+            tbody.innerHTML = reports.length === 0 ? `<tr><td colspan="4" class="text-center p-6 text-gray-400">Belum ada pengaduan masuk.</td></tr>` : '';
+
+            reports.reverse().forEach((rep) => {
+                const tr = document.createElement('tr');
+                const statusColor = rep.status === 'Perlu Tindakan' ? 'bg-rose-100 text-rose-700 font-bold' : 'bg-slate-100 text-slate-600';
+                tr.innerHTML = `
+                    <td class="p-3 font-semibold text-slate-700">${rep.sender}<br><span class="text-[10px] text-slate-400 font-normal">${rep.time}</span></td>
+                    <td class="p-3 max-w-[200px] truncate text-slate-600" title="${rep.message}">${rep.message}</td>
+                    <td class="p-3"><span class="px-2 py-1 rounded-md text-[10px] ${statusColor}">${rep.status}</span><br><span class="text-[10px] text-slate-400 block mt-1 truncate max-w-[150px]">${rep.reply}</span></td>
+                    <td class="p-3 text-right">
+                        <button onclick="replyManual(${rep.id})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-[10px] transition-all"><i class="fa-solid fa-reply"></i> Balas</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // 2. Load Realtime Survey
+            const surveys = JSON.parse(localStorage.getItem('surveys') || '[]');
+            const surveyContainer = document.getElementById('surveyContainer');
+            surveyContainer.innerHTML = surveys.length === 0 ? `<p class="text-center py-4 text-xs text-gray-400">Belum ada responses survey.</p>` : '';
+
+            surveys.reverse().forEach(s => {
+                const item = document.createElement('div');
+                item.className = "p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs";
+                item.innerHTML = `
+                    <div class="flex justify-between font-bold text-slate-700"><span>${s.user}</span> <span class="text-amber-600 text-[10px]">${s.rating}</span></div>
+                    <p class="text-slate-500 mt-1 italic">"${s.comment}"</p>
+                `;
+                surveyContainer.appendChild(item);
+            });
+        }
+
+        function replyManual(id) {
+            const replyMsg = prompt("Masukkan pesan balasan Anda selaku Admin Guru (Pesan akan memperbarui status dashboard siswa):");
+            if (!replyMsg) return;
+
+            let reports = JSON.parse(localStorage.getItem('reports') || '[]');
+            reports = reports.map(r => {
+                if(r.id === id) {
+                    r.reply = replyMsg;
+                    r.status = 'Dibalas Admin';
+                }
+                return r;
+            });
+            localStorage.setItem('reports', JSON.stringify(reports));
+            loadDashboardData();
+        }
+
+        function clearReports() {
+            if(confirm('Apakah Anda yakin ingin menghapus semua riwayat pengaduan?')) {
+                localStorage.removeItem('reports');
+                loadDashboardData();
+            }
+        }
+
+        // Fitur Cerdas: Mengubah struktur array JSON menjadi format file Excel CSV secara instan
+        function exportToExcel(key) {
+            const data = JSON.parse(localStorage.getItem(key) || '[]');
+            if(data.length === 0) {
+                alert('Tidak ada data untuk diekspor!');
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,";
+            
+            // Generate Header Otomatis
+            const headers = Object.keys(data[0]).join(",");
+            csvContent += headers + "\r\n";
+
+            // Baris Data
+            data.forEach(row => {
+                const escapedValues = Object.values(row).map(v => `"${String(v).replace(/"/g, '""')}"`);
+                csvContent += escapedValues.join(",") + "\r\n";
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `Rekap_${key}_SDN_Balowerti2.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Jalankan saat pertama kali dibuka
+        window.onload = loadDashboardData;
+    </script>
+</body>
+</html>
